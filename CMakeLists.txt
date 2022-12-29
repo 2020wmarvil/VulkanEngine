@@ -26,6 +26,7 @@ ENDIF()
 # glob source files
 file (GLOB_RECURSE ENGINE_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Source/*.cpp")
 file (GLOB_RECURSE ENGINE_HEADERS CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Source/*.h")
+file (GLOB_RECURSE ENGINE_SHADERS CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/*.vert" "${CMAKE_CURRENT_SOURCE_DIR}/Shaders/*.frag")
 
 set (ENGINE_INCLUDE_DIRS "")
 foreach (_headerFile ${ENGINE_HEADERS})
@@ -35,7 +36,7 @@ endforeach()
 list (REMOVE_DUPLICATES ENGINE_INCLUDE_DIRS)
 
 # build application executable
-add_executable(${ENGINE_NAME} ${ENGINE_SOURCES} ${ENGINE_HEADERS})
+add_executable(${ENGINE_NAME} ${ENGINE_SOURCES} ${ENGINE_HEADERS} ${ENGINE_SHADERS})
 
 # list include directories
 target_include_directories(${ENGINE_NAME} PRIVATE 
