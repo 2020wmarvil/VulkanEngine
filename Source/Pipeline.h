@@ -1,19 +1,17 @@
 #pragma once
 
 #include <stdint.h>
+#include <string>
+#include <vector>
 
 class Pipeline 
 {
 public:
-    Pipeline();
+    Pipeline(const std::string& vertFilepath, const std::string& fragFilepath);
     virtual ~Pipeline();
 
-    //Pipeline(Pipeline const&) = delete;
-    //Pipeline& operator=(Pipeline other) = delete;
-
     uint32_t GetExtensionCount();
-
-    static void Init();
-    static void Terminate();
 private:
+    std::vector<char> ReadFile(const std::string& filepath);
+    void CreateGraphicsPipeline(const std::string& vertFilepath, const std::string& fragFilepath);
 };
