@@ -20,6 +20,18 @@ int main(int argc, char** argv)
     glm::vec4 vec;
     auto test = matrix * vec;
 
+    ComplexNumber cn1(1, 5);
+    ComplexNumber cn2(3, 4);
+
+    std::cout << cn1 + cn2 << std::endl;
+    std::cout << cn1 - cn2 << std::endl;
+    std::cout << cn1 * cn2 << std::endl;
+    std::cout << cn1 / cn2 << std::endl;
+    std::cout << cn1.Abs() << std::endl;
+    std::cout << cn2.Abs() << std::endl;
+    std::cout << cn1.Arg() << std::endl;
+    std::cout << cn2.Arg() << std::endl;
+
     Window::Terminate();
 }
 
