@@ -38,14 +38,18 @@ list (REMOVE_DUPLICATES ENGINE_INCLUDE_DIRS)
 # build application executable
 add_executable(${ENGINE_NAME} ${ENGINE_SOURCES} ${ENGINE_HEADERS} ${ENGINE_SHADERS})
 
+# preprocessor definitions
+target_compile_definitions(${ENGINE_NAME} PUBLIC 
+	$<$<CONFIG:Debug>:_DEBUG>
+)
+
 # list include directories
 target_include_directories(${ENGINE_NAME} PRIVATE 
 	"${ENGINE_INCLUDE_DIRS}"
 	"${ENGINE_THIRDPARTY_DIR}/glfw/include"
 	"${ENGINE_THIRDPARTY_DIR}/glm/glm"
 	"${ENGINE_THIRDPARTY_DIR}/glslang"
-
-    ${Vulkan_INCLUDE_DIRS}
+	"${Vulkan_INCLUDE_DIRS}"
 )
 
 # build thirdparty resources

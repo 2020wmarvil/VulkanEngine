@@ -6,6 +6,7 @@
 #include <glm/mat4x4.hpp>
 
 #include <ostream>
+#include <vector>
 
 #define PI 3.14159265358979323846
 

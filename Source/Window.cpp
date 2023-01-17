@@ -1,7 +1,6 @@
 #include "Window.h"
 
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
+#include <iostream>
 
 static void KeyCallback(GLFWwindow* Window, int Key, int Scancode, int Action, int Mods)
 {
@@ -33,6 +32,25 @@ void Window::Run()
         glfwSwapBuffers(this->window);
         glfwPollEvents();
     }
+}
+
+
+void Window::CreateSurface(VkInstance instance, const VkAllocationCallbacks *allocationCallbacks, VkSurfaceKHR *surface) const
+{
+    if (glfwCreateWindowSurface(instance, window, nullptr, surface) != VK_SUCCESS)
+    {
+        std::cerr << "Failed to create surface from window\n";
+    }
+}
+
+void Window::GetWindowSize(int& outWidth, int& outHeight)
+{
+    glfwGetWindowSize(window, &outWidth, &outHeight);
+}
+
+void Window::GetFramebufferSize(int& outWidth, int& outHeight)
+{
+    glfwGetFramebufferSize(window, &outWidth, &outHeight);
 }
 
 void Window::Init()

@@ -1,21 +1,27 @@
-#include "Window.h"
-#include "Pipeline.h"
 #include "MathLib.h"
+#include "Pipeline.h"
+#include "Renderer.h"
+#include "Window.h"
 
 #include <iostream>
 
-#include "glslang/Public/ShaderLang.h"
+#define WINDOW_WIDTH 1920
+#define WINDOW_HEIGHT 1080
 
 int main(int argc, char** argv)
 {
-	std::cout << "hi ronan\n" << std::endl;
-
     Window::Init();
 
-    Pipeline pipeline("../Shaders/main.vert.spv", "../Shaders/main.frag.spv");
-    std::cout << pipeline.GetExtensionCount() << " extensions supported\n";
+    /* Pipeline Creation
+    * CreateGraphicsPipeline
+    * CreateShaderModule
+    */
 
-    Window window(1920, 1080, "Vulkan Engine");
+    Window window(WINDOW_WIDTH, WINDOW_HEIGHT, "Vulkan Engine");
+    Renderer renderer(window);
+
+    Pipeline pipeline(renderer, Pipeline::DefaultPipelineConfigInfo(), "../Shaders/vert.spv", "../Shaders/frag.spv");
+
     window.Run();
 
     Window::Terminate();
