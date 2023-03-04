@@ -12,7 +12,10 @@ public:
     Window(Window const&) = delete;
     Window& operator=(Window other) = delete;
 
-    void Run();
+    bool ShouldClose();
+    void SwapBuffers();
+    void PollEvents();
+
     void CreateSurface(VkInstance instance, const VkAllocationCallbacks* allocationCallbacks, VkSurfaceKHR* surface) const;
     void GetWindowSize(int& outWidth, int& outHeight);
     void GetFramebufferSize(int& outWidth, int& outHeight);

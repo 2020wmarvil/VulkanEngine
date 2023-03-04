@@ -23,17 +23,20 @@ Window::~Window()
     glfwDestroyWindow(this->window);
 }
 
-void Window::Run()
+bool Window::ShouldClose()
 {
-    while (!glfwWindowShouldClose(this->window))
-    {
-        int Width, Height;
-        glfwGetFramebufferSize(this->window, &Width, &Height);
-        glfwSwapBuffers(this->window);
-        glfwPollEvents();
-    }
+    return glfwWindowShouldClose(window);
 }
 
+void Window::SwapBuffers()
+{
+    glfwSwapBuffers(window);
+}
+
+void Window::PollEvents()
+{
+    glfwPollEvents();
+}
 
 void Window::CreateSurface(VkInstance instance, const VkAllocationCallbacks *allocationCallbacks, VkSurfaceKHR *surface) const
 {

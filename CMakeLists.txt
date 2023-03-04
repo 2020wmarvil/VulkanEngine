@@ -48,20 +48,15 @@ target_include_directories(${ENGINE_NAME} PRIVATE
 	"${ENGINE_INCLUDE_DIRS}"
 	"${ENGINE_THIRDPARTY_DIR}/glfw/include"
 	"${ENGINE_THIRDPARTY_DIR}/glm/glm"
-	"${ENGINE_THIRDPARTY_DIR}/glslang"
 	"${Vulkan_INCLUDE_DIRS}"
 )
 
 # build thirdparty resources
 add_subdirectory("${ENGINE_THIRDPARTY_DIR}/glfw")
 add_subdirectory("${ENGINE_THIRDPARTY_DIR}/glm")
-add_subdirectory("${ENGINE_THIRDPARTY_DIR}/glslang")
 
 # make sure the linker can find the Lib library once it is built. 
 target_link_directories(${ENGINE_NAME} PRIVATE ${LIB_BINARY_DIR}/Lib) 
 
-# TODO: build command to compile all shaders: 
-# https://stackoverflow.com/questions/71299716/how-to-compile-hlsl-shaders-during-build-with-cmake
-
 # link the executable to the lib library.
-target_link_libraries(${ENGINE_NAME} ${Vulkan_LIBRARY} glfw glm glslang)
+target_link_libraries(${ENGINE_NAME} ${Vulkan_LIBRARY} glfw glm)

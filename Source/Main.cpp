@@ -1,29 +1,17 @@
-#include "MathLib.h"
-#include "Pipeline.h"
-#include "Renderer.h"
+#include "VulkanEngine.h"
 #include "Window.h"
-
-#include <iostream>
-
-#define WINDOW_WIDTH 1920
-#define WINDOW_HEIGHT 1080
 
 int main(int argc, char** argv)
 {
-    Window::Init();
+	Window::Init();
 
-    /* Pipeline Creation
-    * CreateGraphicsPipeline
-    * CreateShaderModule
-    */
+    VulkanEngine engine;
+	engine.init();
+	engine.run();
+	engine.cleanup();
 
-    Window window(WINDOW_WIDTH, WINDOW_HEIGHT, "Vulkan Engine");
-    Renderer renderer(window);
+	Window::Terminate();
 
-    Pipeline pipeline(renderer, Pipeline::DefaultPipelineConfigInfo(), "../Shaders/vert.spv", "../Shaders/frag.spv");
-
-    window.Run();
-
-    Window::Terminate();
+	return 0;
 }
 
