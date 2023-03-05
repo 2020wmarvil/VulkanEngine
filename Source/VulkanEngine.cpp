@@ -1,9 +1,12 @@
 #include "VulkanEngine.h"
 
-#include "VkBootstrap.h"
 #include "VulkanInitializers.h"
 #include "VulkanTypes.h"
 #include "Window.h"
+
+#define VMA_IMPLEMENTATION
+#include "vk_mem_alloc.h"
+#include "VkBootstrap.h"
 
 #include <fstream>
 #include <iostream>

@@ -48,18 +48,18 @@ target_include_directories(${ENGINE_NAME} PRIVATE
 	"${ENGINE_INCLUDE_DIRS}"
 	"${ENGINE_THIRDPARTY_DIR}/glfw/include"
 	"${ENGINE_THIRDPARTY_DIR}/glm/glm"
+	"${ENGINE_THIRDPARTY_DIR}/VkBootstrap"
+	"${ENGINE_THIRDPARTY_DIR}/VulkanMemoryAllocator/include"
+	"${ENGINE_THIRDPARTY_DIR}/vk-bootstrap"
 	"${Vulkan_INCLUDE_DIRS}"
 )
 
-# build thirdparty resources
+# build and link thirdparty resources
 add_subdirectory("${ENGINE_THIRDPARTY_DIR}/glfw")
 add_subdirectory("${ENGINE_THIRDPARTY_DIR}/glm")
-
-# make sure the linker can find the Lib library once it is built. 
-target_link_directories(${ENGINE_NAME} PRIVATE ${LIB_BINARY_DIR}/Lib) 
-
-# link the executable to the lib library.
-target_link_libraries(${ENGINE_NAME} ${Vulkan_LIBRARY} glfw glm)
+add_subdirectory("${ENGINE_THIRDPARTY_DIR}/VulkanMemoryAllocator")
+add_subdirectory("${ENGINE_THIRDPARTY_DIR}/vk-bootstrap")
+target_link_libraries(${ENGINE_NAME} ${Vulkan_LIBRARY} glfw glm VulkanMemoryAllocator vkbootstrap)
 
 # create a shader target
 find_program(GLSL_VALIDATOR glslangValidator HINTS /usr/bin /usr/local/bin $ENV{VULKAN_SDK}/Bin/ $ENV{VULKAN_SDK}/Bin32/)
