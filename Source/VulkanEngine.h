@@ -8,6 +8,9 @@
 #include <memory>
 #include <vector>
 
+struct VmaAllocator_T;
+VK_DEFINE_HANDLE(VmaAllocator)
+
 struct DeletionQueue
 {
 	std::deque<std::function<void()>> deletors;
@@ -74,6 +77,7 @@ public:
 	VkPipelineLayout _trianglePipelineLayout;
 	VkPipeline _trianglePipeline;
 
+	VmaAllocator _allocator;
 	DeletionQueue _mainDeletionQueue;
 	
 	void init();
