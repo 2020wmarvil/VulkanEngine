@@ -7,6 +7,8 @@
 #define VMA_IMPLEMENTATION
 #include "vk_mem_alloc.h"
 #include "VkBootstrap.h"
+#include "glm/glm.hpp"
+#include "glm/gtx/transform.hpp"
 
 #include <fstream>
 #include <iostream>
@@ -26,6 +28,12 @@
 	#define VK_CHECK(x) x;
 #endif
 
+struct MeshPushConstants
+{
+	glm::vec4 data;
+	glm::mat4 render_matrix;
+};
+
 void VulkanEngine::init()
 {
 	_window = std::make_unique<Window>(_windowExtent.width, _windowExtent.height, "Vulkan Engine");
@@ -38,6 +46,8 @@ void VulkanEngine::init()
 	init_sync_structures();
 	init_pipelines();
 
+	load_meshes();
+
 	_isInitialized = true;
 }
 
@@ -46,9 +56,9 @@ void VulkanEngine::init_vulkan()
 	vkb::InstanceBuilder builder;
 
 	auto inst_ret = builder.set_app_name("Example Vulkan Application")
-		.request_validation_layers(true)
 		.require_api_version(1, 1, 0)
 #ifdef _DEBUG
+		.request_validation_layers(true)
 		.use_default_debug_messenger()
 #endif
 		.build();
@@ -197,33 +207,39 @@ void VulkanEngine::init_sync_structures()
 
 void VulkanEngine::init_pipelines()
 {
-	VkShaderModule triangleFragShader;
-	if (!load_shader_module("../Shaders/triangle.frag.spv", &triangleFragShader))
+	VkShaderModule fragModule;
+	if (!load_shader_module("../Shaders/triangle.frag.spv", &fragModule))
 	{
 		std::cerr << "Error when building the triangle fragment shader module" << std::endl;
 	} 
-	else
+
+	VkShaderModule vertModule;
+	if (!load_shader_module("../Shaders/trimesh.vert.spv", &vertModule))
 	{
-		std::cout << "Triangle fragment shader successfully loaded" << std::endl;
+		std::cerr << "Error when building the trimesh vertex shader module" << std::endl;
 	}
 
-	VkShaderModule triangleVertexShader;
-	if (!load_shader_module("../Shaders/triangle.vert.spv", &triangleVertexShader))
-	{
-		std::cerr << "Error when building the triangle vertex shader module" << std::endl;
-	}
-	else
-	{
-		std::cout << "Triangle vertex shader successfully loaded" << std::endl;
-	}
+	VkPushConstantRange push_constant;
+	push_constant.offset = 0;
+	push_constant.size = sizeof(MeshPushConstants);
+	push_constant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
 	VkPipelineLayoutCreateInfo pipeline_layout_info = vkinit::pipeline_layout_create_info();
-	VK_CHECK(vkCreatePipelineLayout(_device, &pipeline_layout_info, nullptr, &_trianglePipelineLayout));
+	pipeline_layout_info.pushConstantRangeCount = 1;
+	pipeline_layout_info.pPushConstantRanges = &push_constant;
+	VK_CHECK(vkCreatePipelineLayout(_device, &pipeline_layout_info, nullptr, &_meshPipelineLayout));
 
 	PipelineBuilder pipelineBuilder;
-	pipelineBuilder._shaderStages.push_back(vkinit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_VERTEX_BIT, triangleVertexShader));
-	pipelineBuilder._shaderStages.push_back(vkinit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_FRAGMENT_BIT, triangleFragShader));
+	pipelineBuilder._shaderStages.push_back(vkinit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_VERTEX_BIT, vertModule));
+	pipelineBuilder._shaderStages.push_back(vkinit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_FRAGMENT_BIT, fragModule));
+
 	pipelineBuilder._vertexInputInfo = vkinit::vertex_input_state_create_info();
+	VertexInputDescription vertexDescription = Vertex::get_vertex_description();
+	pipelineBuilder._vertexInputInfo.pVertexAttributeDescriptions = vertexDescription.attributes.data();
+	pipelineBuilder._vertexInputInfo.vertexAttributeDescriptionCount = vertexDescription.attributes.size();
+	pipelineBuilder._vertexInputInfo.pVertexBindingDescriptions = vertexDescription.bindings.data();
+	pipelineBuilder._vertexInputInfo.vertexBindingDescriptionCount = vertexDescription.bindings.size();
+
 	pipelineBuilder._inputAssembly = vkinit::input_assembly_create_info(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
 	pipelineBuilder._viewport.x = 0.0f;
 	pipelineBuilder._viewport.y = 0.0f;
@@ -236,15 +252,15 @@ void VulkanEngine::init_pipelines()
 	pipelineBuilder._rasterizer = vkinit::rasterization_state_create_info(VK_POLYGON_MODE_FILL);
 	pipelineBuilder._multisampling = vkinit::multisampling_state_create_info();
 	pipelineBuilder._colorBlendAttachment = vkinit::color_blend_attachment_state();
-	pipelineBuilder._pipelineLayout = _trianglePipelineLayout;
-	_trianglePipeline = pipelineBuilder.build_pipeline(_device, _renderPass);
+	pipelineBuilder._pipelineLayout = _meshPipelineLayout;
+	_meshPipeline = pipelineBuilder.build_pipeline(_device, _renderPass);
 
-	vkDestroyShaderModule(_device, triangleVertexShader, nullptr);
-	vkDestroyShaderModule(_device, triangleFragShader, nullptr);
+	vkDestroyShaderModule(_device, fragModule, nullptr);
+	vkDestroyShaderModule(_device, vertModule, nullptr);
 
 	_mainDeletionQueue.push_function([=]() {
-        vkDestroyPipeline(_device, _trianglePipeline, nullptr);
-		vkDestroyPipelineLayout(_device, _trianglePipelineLayout, nullptr);
+        vkDestroyPipeline(_device, _meshPipeline, nullptr);
+		vkDestroyPipelineLayout(_device, _meshPipelineLayout, nullptr);
     });
 }
 
@@ -254,6 +270,7 @@ void VulkanEngine::cleanup()
 		vkWaitForFences(_device, 1, &_renderFence, true, 1000000000);
 
 		_mainDeletionQueue.flush();
+		vmaDestroyAllocator(_allocator);
 
 		vkDestroyDevice(_device, nullptr);
 		vkDestroySurfaceKHR(_instance, _surface, nullptr);
@@ -288,15 +305,31 @@ void VulkanEngine::draw()
 	rpInfo.renderArea.offset.y = 0;
 	rpInfo.renderArea.extent = _windowExtent;
 	rpInfo.framebuffer = _framebuffers[swapchainImageIndex];
-
-	//connect clear values
 	rpInfo.clearValueCount = 1;
 	rpInfo.pClearValues = &clearValue;
 
 	vkCmdBeginRenderPass(cmd, &rpInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _trianglePipeline);
-	vkCmdDraw(cmd, 3, 1, 0, 0);
+	// Bind material
+	vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _meshPipeline);
+	VkDeviceSize offset = 0;
+	vkCmdBindVertexBuffers(cmd, 0, 1, &_monkeyMesh._vertexBuffer._buffer, &offset);
+
+	// Create MVP Matrix
+    glm::vec3 camPos = { 0.f,0.f,-2.f };
+    glm::mat4 view = glm::translate(glm::mat4(1.f), camPos);
+    glm::mat4 projection = glm::perspective(glm::radians(70.f), 1700.f / 900.f, 0.1f, 200.0f);
+    projection[1][1] *= -1;
+    glm::mat4 model = glm::rotate(glm::mat4{ 1.0f }, glm::radians(_frameNumber * 0.4f), glm::vec3(0, 1, 0));
+    glm::mat4 mesh_matrix = projection * view * model;
+
+	// Push constants
+    MeshPushConstants constants;
+    constants.render_matrix = mesh_matrix;
+    vkCmdPushConstants(cmd, _meshPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(MeshPushConstants), &constants);
+
+	// Draw
+	vkCmdDraw(cmd, _monkeyMesh._vertices.size(), 1, 0, 0);
 
 	vkCmdEndRenderPass(cmd);
 
@@ -357,6 +390,46 @@ bool VulkanEngine::load_shader_module(const char* filePath, VkShaderModule* outS
 	*outShaderModule = shaderModule;
 
 	return true;
+}
+
+void VulkanEngine::load_meshes()
+{
+	_triangleMesh._vertices.resize(3);
+	_triangleMesh._vertices[0].position = { 1.f, 1.f, 0.0f };
+	_triangleMesh._vertices[1].position = {-1.f, 1.f, 0.0f };
+	_triangleMesh._vertices[2].position = { 0.f,-1.f, 0.0f };
+	_triangleMesh._vertices[0].color = { 0.f, 1.f, 0.0f }; //pure green
+	_triangleMesh._vertices[1].color = { 0.f, 1.f, 0.0f }; //pure green
+	_triangleMesh._vertices[2].color = { 0.f, 1.f, 0.0f }; //pure green
+
+	_monkeyMesh.load_from_obj("../Assets/monkey_smooth.obj");
+
+	upload_mesh(_monkeyMesh);
+	upload_mesh(_triangleMesh);
+}
+
+void VulkanEngine::upload_mesh(Mesh& mesh)
+{
+	VkBufferCreateInfo bufferInfo = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
+	bufferInfo.size = mesh._vertices.size() * sizeof(Vertex); // size of the buffer in bytes
+	bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+
+	VmaAllocationCreateInfo vmaallocInfo = {};
+	vmaallocInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU; // writeable to cpu, readable to gpu
+
+	VK_CHECK(vmaCreateBuffer(_allocator, &bufferInfo, &vmaallocInfo,
+		&mesh._vertexBuffer._buffer,
+		&mesh._vertexBuffer._allocation,
+		nullptr));
+
+	_mainDeletionQueue.push_function([=]() {
+        vmaDestroyBuffer(_allocator, mesh._vertexBuffer._buffer, mesh._vertexBuffer._allocation);
+    });
+	
+	void* data;
+	vmaMapMemory(_allocator, mesh._vertexBuffer._allocation, &data);
+	memcpy(data, mesh._vertices.data(), mesh._vertices.size() * sizeof(Vertex));
+	vmaUnmapMemory(_allocator, mesh._vertexBuffer._allocation);
 }
 
 VkPipeline PipelineBuilder::build_pipeline(VkDevice device, VkRenderPass pass)

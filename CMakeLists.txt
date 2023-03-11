@@ -46,10 +46,10 @@ target_compile_definitions(${ENGINE_NAME} PUBLIC
 # list include directories
 target_include_directories(${ENGINE_NAME} PRIVATE 
 	"${ENGINE_INCLUDE_DIRS}"
+	"${ENGINE_THIRDPARTY_DIR}/VulkanMemoryAllocator/include"
 	"${ENGINE_THIRDPARTY_DIR}/glfw/include"
 	"${ENGINE_THIRDPARTY_DIR}/glm/glm"
-	"${ENGINE_THIRDPARTY_DIR}/VkBootstrap"
-	"${ENGINE_THIRDPARTY_DIR}/VulkanMemoryAllocator/include"
+	"${ENGINE_THIRDPARTY_DIR}/tinyobjloader"
 	"${ENGINE_THIRDPARTY_DIR}/vk-bootstrap"
 	"${Vulkan_INCLUDE_DIRS}"
 )

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "VulkanTypes.h"
+#include "VulkanMesh.h"
 #include "Window.h"
 
 #include <deque>
@@ -66,6 +67,10 @@ public:
 	std::vector<VkImage> _swapchainImages;
 	std::vector<VkImageView> _swapchainImageViews;
 
+	VkImageView _depthImageView;
+	AllocatedImage _depthImage;
+	VkFormat _depthFormat;
+
 	VkRenderPass _renderPass;
 	std::vector<VkFramebuffer> _framebuffers;
 
@@ -74,8 +79,11 @@ public:
 	VkSemaphore _presentSemaphore, _renderSemaphore;
 	VkFence _renderFence;
 
-	VkPipelineLayout _trianglePipelineLayout;
-	VkPipeline _trianglePipeline;
+	VkPipeline _meshPipeline;
+	VkPipelineLayout _meshPipelineLayout;
+	Mesh _triangleMesh;
+
+	Mesh _monkeyMesh;
 
 	VmaAllocator _allocator;
 	DeletionQueue _mainDeletionQueue;
@@ -94,4 +102,6 @@ public:
 	void run();
 
 	bool load_shader_module(const char* filePath, VkShaderModule* outShaderModule);
+	void load_meshes();
+	void upload_mesh(Mesh& mesh);
 };
