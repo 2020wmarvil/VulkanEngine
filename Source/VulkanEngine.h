@@ -4,13 +4,39 @@
 #include "VulkanMesh.h"
 #include "Window.h"
 
+#include "glm/glm.hpp"
+#include "glm/gtx/transform.hpp"
+
 #include <deque>
 #include <functional>
 #include <memory>
+#include <unordered_map>
 #include <vector>
+
+/* TODO:
+ * - Clean up all the hardcoded pipelines and meshes from VulkanEngine class
+ * - Create multiple pipelines with newer shaders, and use them to render monkeys each with a different material each
+ * - Load more meshes. As long as it’s an obj with TRIANGLE meshes, it should work fine. Make sure on export that the obj includes normals and colors
+ * - Add WASD controls to the camera. For that, you would need to modify the camera matrices in the draw functions.
+ * - Sort the renderables array before rendering by Pipeline and Mesh, to reduce number of binds.
+ * - Instanced rendering + per instance custom data
+ */
 
 struct VmaAllocator_T;
 VK_DEFINE_HANDLE(VmaAllocator)
+
+struct Material
+{
+	VkPipeline pipeline;
+	VkPipelineLayout pipelineLayout;
+};
+
+struct RenderObject
+{
+	Mesh* mesh;
+	Material* material;
+	glm::mat4 transformMatrix;
+};
 
 struct DeletionQueue
 {
@@ -40,6 +66,7 @@ public:
 	VkPipelineRasterizationStateCreateInfo _rasterizer;
 	VkPipelineColorBlendAttachmentState _colorBlendAttachment;
 	VkPipelineMultisampleStateCreateInfo _multisampling;
+	VkPipelineDepthStencilStateCreateInfo _depthStencil;
 	VkPipelineLayout _pipelineLayout;
 
 	VkPipeline build_pipeline(VkDevice device, VkRenderPass pass);
@@ -79,14 +106,16 @@ public:
 	VkSemaphore _presentSemaphore, _renderSemaphore;
 	VkFence _renderFence;
 
-	VkPipeline _meshPipeline;
-	VkPipelineLayout _meshPipelineLayout;
-	Mesh _triangleMesh;
-
-	Mesh _monkeyMesh;
-
 	VmaAllocator _allocator;
 	DeletionQueue _mainDeletionQueue;
+
+	std::vector<RenderObject> _renderables;
+	std::unordered_map<std::string, Material> _materials;
+	std::unordered_map<std::string, Mesh> _meshes;
+
+	VkPipelineLayout _meshPipelineLayout;
+	VkPipeline _meshPipeline;
+	Mesh _monkeyMesh, _triangleMesh;
 	
 	void init();
 	void init_vulkan();
@@ -96,6 +125,7 @@ public:
 	void init_framebuffers();
 	void init_sync_structures();
 	void init_pipelines();
+	void init_scene();
 
 	void cleanup();
 	void draw();
@@ -104,4 +134,9 @@ public:
 	bool load_shader_module(const char* filePath, VkShaderModule* outShaderModule);
 	void load_meshes();
 	void upload_mesh(Mesh& mesh);
+
+	Material* create_material(VkPipeline pipeline, VkPipelineLayout layout, const std::string& name);
+	Material* get_material(const std::string& name);
+	Mesh* get_mesh(const std::string& name);
+	void draw_objects(VkCommandBuffer cmd,RenderObject* first, int count);
 };
