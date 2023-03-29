@@ -15,8 +15,6 @@
 
 /* TODO:
  * - Clean up all the hardcoded pipelines and meshes from VulkanEngine class
- * - Create multiple pipelines with newer shaders, and use them to render monkeys each with a different material each
- * - Load more meshes. As long as it’s an obj with TRIANGLE meshes, it should work fine. Make sure on export that the obj includes normals and colors
  * - Add WASD controls to the camera. For that, you would need to modify the camera matrices in the draw functions.
  * - Sort the renderables array before rendering by Pipeline and Mesh, to reduce number of binds.
  * - Instanced rendering + per instance custom data
@@ -24,6 +22,11 @@
 
 struct VmaAllocator_T;
 VK_DEFINE_HANDLE(VmaAllocator)
+
+enum VmaMemoryUsage : int;
+
+//number of frames to overlap when rendering
+constexpr unsigned int FRAME_OVERLAP = 2;
 
 struct Material
 {
@@ -36,6 +39,24 @@ struct RenderObject
 	Mesh* mesh;
 	Material* material;
 	glm::mat4 transformMatrix;
+};
+
+struct GPUCameraData
+{
+	glm::mat4 view;
+	glm::mat4 proj;
+	glm::mat4 viewproj;
+};
+
+struct FrameData
+{
+	VkSemaphore _presentSemaphore, _renderSemaphore;
+	VkFence _renderFence;	
+	VkCommandPool _commandPool;
+	VkCommandBuffer _mainCommandBuffer;
+
+	AllocatedBuffer cameraBuffer; // buffer that holds a single GPUCameraData to use when rendering
+	VkDescriptorSet globalDescriptor;
 };
 
 struct DeletionQueue
@@ -101,10 +122,7 @@ public:
 	VkRenderPass _renderPass;
 	std::vector<VkFramebuffer> _framebuffers;
 
-	VkCommandPool _commandPool;
-	VkCommandBuffer _mainCommandBuffer;
-	VkSemaphore _presentSemaphore, _renderSemaphore;
-	VkFence _renderFence;
+	FrameData _frames[FRAME_OVERLAP];
 
 	VmaAllocator _allocator;
 	DeletionQueue _mainDeletionQueue;
@@ -113,9 +131,8 @@ public:
 	std::unordered_map<std::string, Material> _materials;
 	std::unordered_map<std::string, Mesh> _meshes;
 
-	VkPipelineLayout _meshPipelineLayout;
-	VkPipeline _meshPipeline;
-	Mesh _monkeyMesh, _triangleMesh;
+	VkDescriptorSetLayout _globalSetLayout;
+	VkDescriptorPool _descriptorPool;
 	
 	void init();
 	void init_vulkan();
@@ -124,6 +141,7 @@ public:
 	void init_default_renderpass();
 	void init_framebuffers();
 	void init_sync_structures();
+	void init_descriptors();
 	void init_pipelines();
 	void init_scene();
 
@@ -139,4 +157,7 @@ public:
 	Material* get_material(const std::string& name);
 	Mesh* get_mesh(const std::string& name);
 	void draw_objects(VkCommandBuffer cmd,RenderObject* first, int count);
+
+	FrameData& get_current_frame();
+	AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
 };

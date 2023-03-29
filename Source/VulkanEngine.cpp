@@ -42,6 +42,7 @@ void VulkanEngine::init()
 	init_default_renderpass();
 	init_framebuffers();
 	init_sync_structures();
+	init_descriptors();
 	init_pipelines();
 
 	load_meshes();
@@ -141,14 +142,18 @@ void VulkanEngine::init_swapchain()
 void VulkanEngine::init_commands()
 {
 	VkCommandPoolCreateInfo commandPoolInfo = vkinit::command_pool_create_info(_graphicsQueueFamily, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
-	VK_CHECK(vkCreateCommandPool(_device, &commandPoolInfo, nullptr, &_commandPool));
 
-	VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::command_buffer_allocate_info(_commandPool, 1);
-	VK_CHECK(vkAllocateCommandBuffers(_device, &cmdAllocInfo, &_mainCommandBuffer));
+	for (int i = 0; i < FRAME_OVERLAP; i++)
+	{
+		VK_CHECK(vkCreateCommandPool(_device, &commandPoolInfo, nullptr, &_frames[i]._commandPool));
 
-	_mainDeletionQueue.push_function([=]() {
-		vkDestroyCommandPool(_device, _commandPool, nullptr);
-	});
+		VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::command_buffer_allocate_info(_frames[i]._commandPool, 1);
+		VK_CHECK(vkAllocateCommandBuffers(_device, &cmdAllocInfo, &_frames[i]._mainCommandBuffer));
+
+		_mainDeletionQueue.push_function([=]() {
+			vkDestroyCommandPool(_device, _frames[i]._commandPool, nullptr);
+		});
+	}
 }
 
 void VulkanEngine::init_default_renderpass()
@@ -255,20 +260,55 @@ void VulkanEngine::init_framebuffers()
 void VulkanEngine::init_sync_structures()
 {
 	VkFenceCreateInfo fenceCreateInfo = vkinit::fence_create_info(VK_FENCE_CREATE_SIGNALED_BIT);
-	VK_CHECK(vkCreateFence(_device, &fenceCreateInfo, nullptr, &_renderFence));
-
-	_mainDeletionQueue.push_function([=]() {
-		vkDestroyFence(_device, _renderFence, nullptr);
-	});
-
 	VkSemaphoreCreateInfo semaphoreCreateInfo = vkinit::semaphore_create_info();
-	VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &_presentSemaphore));
-	VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &_renderSemaphore));
 
-	_mainDeletionQueue.push_function([=]() {
-		vkDestroySemaphore(_device, _renderSemaphore, nullptr);
-		vkDestroySemaphore(_device, _presentSemaphore, nullptr);
+	for (int i = 0; i < FRAME_OVERLAP; i++) {
+		VK_CHECK(vkCreateFence(_device, &fenceCreateInfo, nullptr, &_frames[i]._renderFence));
+
+		_mainDeletionQueue.push_function([=]() {
+			vkDestroyFence(_device, _frames[i]._renderFence, nullptr);
+		});
+
+		VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &_frames[i]._presentSemaphore));
+		VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &_frames[i]._renderSemaphore));
+
+		_mainDeletionQueue.push_function([=]() {
+			vkDestroySemaphore(_device, _frames[i]._renderSemaphore, nullptr);
+			vkDestroySemaphore(_device, _frames[i]._presentSemaphore, nullptr);
+		});
+	}
+}
+
+void VulkanEngine::init_descriptors()
+{
+	VkDescriptorSetLayoutBinding camBufferBinding = {};
+	camBufferBinding.binding = 0;
+	camBufferBinding.descriptorCount = 1;
+	camBufferBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	camBufferBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+	VkDescriptorSetLayoutCreateInfo setinfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+	setinfo.bindingCount = 1;
+	setinfo.flags = 0;
+	setinfo.pBindings = &camBufferBinding;
+
+	vkCreateDescriptorSetLayout(_device, &setinfo, nullptr, &_globalSetLayout);
+
+	_mainDeletionQueue.push_function([&]() {
+		vkDestroyDescriptorSetLayout(_device, _globalSetLayout, nullptr);
 	});
+
+	for (int i = 0; i < FRAME_OVERLAP; i++)
+	{
+		_frames[i].cameraBuffer = create_buffer(sizeof(GPUCameraData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+	}
+
+	for (int i = 0; i < FRAME_OVERLAP; i++)
+	{
+		_mainDeletionQueue.push_function([&]() {
+			vmaDestroyBuffer(_allocator, _frames[i].cameraBuffer._buffer, _frames[i].cameraBuffer._allocation);
+		});
+	}
 }
 
 void VulkanEngine::init_pipelines()
@@ -293,7 +333,11 @@ void VulkanEngine::init_pipelines()
 	VkPipelineLayoutCreateInfo pipeline_layout_info = vkinit::pipeline_layout_create_info();
 	pipeline_layout_info.pushConstantRangeCount = 1;
 	pipeline_layout_info.pPushConstantRanges = &push_constant;
-	VK_CHECK(vkCreatePipelineLayout(_device, &pipeline_layout_info, nullptr, &_meshPipelineLayout));
+	pipeline_layout_info.setLayoutCount = 1;
+	pipeline_layout_info.pSetLayouts = &_globalSetLayout;
+
+	VkPipelineLayout pipelineLayout;
+	VK_CHECK(vkCreatePipelineLayout(_device, &pipeline_layout_info, nullptr, &pipelineLayout));
 
 	PipelineBuilder pipelineBuilder;
 	pipelineBuilder._shaderStages.push_back(vkinit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_VERTEX_BIT, vertModule));
@@ -319,17 +363,17 @@ void VulkanEngine::init_pipelines()
 	pipelineBuilder._multisampling = vkinit::multisampling_state_create_info();
 	pipelineBuilder._colorBlendAttachment = vkinit::color_blend_attachment_state();
 	pipelineBuilder._depthStencil = vkinit::depth_stencil_create_info(true, true, VK_COMPARE_OP_LESS_OR_EQUAL);
-	pipelineBuilder._pipelineLayout = _meshPipelineLayout;
-	_meshPipeline = pipelineBuilder.build_pipeline(_device, _renderPass);
+	pipelineBuilder._pipelineLayout = pipelineLayout;
+	VkPipeline pipeline = pipelineBuilder.build_pipeline(_device, _renderPass);
 
 	vkDestroyShaderModule(_device, fragModule, nullptr);
 	vkDestroyShaderModule(_device, vertModule, nullptr);
 
-	create_material(_meshPipeline, _meshPipelineLayout, "defaultmesh");
+	create_material(pipeline, pipelineLayout, "defaultmesh");
 
 	_mainDeletionQueue.push_function([=]() {
-        vkDestroyPipeline(_device, _meshPipeline, nullptr);
-		vkDestroyPipelineLayout(_device, _meshPipelineLayout, nullptr);
+        vkDestroyPipeline(_device, pipeline, nullptr);
+		vkDestroyPipelineLayout(_device, pipelineLayout, nullptr);
     });
 }
 
@@ -357,7 +401,7 @@ void VulkanEngine::init_scene()
 void VulkanEngine::cleanup()
 {
 	if (_isInitialized) {
-		vkWaitForFences(_device, 1, &_renderFence, true, 1000000000);
+		vkDeviceWaitIdle(_device);
 
 		_mainDeletionQueue.flush();
 		vmaDestroyAllocator(_allocator);
@@ -371,15 +415,16 @@ void VulkanEngine::cleanup()
 
 void VulkanEngine::draw()
 {
-	VK_CHECK(vkWaitForFences(_device, 1, &_renderFence, true, 1000000000));
-	VK_CHECK(vkResetFences(_device, 1, &_renderFence));
+	const FrameData& currentFrame = get_current_frame();
+	VK_CHECK(vkWaitForFences(_device, 1, &currentFrame._renderFence, true, 1000000000));
+	VK_CHECK(vkResetFences(_device, 1, &currentFrame._renderFence));
 
 	uint32_t swapchainImageIndex;
-	VK_CHECK(vkAcquireNextImageKHR(_device, _swapchain, 1000000000, _presentSemaphore, nullptr, &swapchainImageIndex));
+	VK_CHECK(vkAcquireNextImageKHR(_device, _swapchain, 1000000000, currentFrame._presentSemaphore, nullptr, &swapchainImageIndex));
 
 	// Begin recording command buffer
-	VK_CHECK(vkResetCommandBuffer(_mainCommandBuffer, 0));
-	VkCommandBuffer cmd = _mainCommandBuffer;
+	VK_CHECK(vkResetCommandBuffer(currentFrame._mainCommandBuffer, 0));
+	VkCommandBuffer cmd = currentFrame._mainCommandBuffer;
 	VkCommandBufferBeginInfo cmdBeginInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
 	cmdBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 	VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
@@ -412,20 +457,20 @@ void VulkanEngine::draw()
 	// Submit command buffer
 	VkSubmitInfo submit = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
 	submit.waitSemaphoreCount = 1;
-	submit.pWaitSemaphores = &_presentSemaphore;
+	submit.pWaitSemaphores = &currentFrame._presentSemaphore;
 	submit.signalSemaphoreCount = 1;
-	submit.pSignalSemaphores = &_renderSemaphore;
+	submit.pSignalSemaphores = &currentFrame._renderSemaphore;
 	submit.commandBufferCount = 1;
 	submit.pCommandBuffers = &cmd;
 	VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 	submit.pWaitDstStageMask = &waitStage;
-	VK_CHECK(vkQueueSubmit(_graphicsQueue, 1, &submit, _renderFence));
+	VK_CHECK(vkQueueSubmit(_graphicsQueue, 1, &submit, currentFrame._renderFence));
 
 	// Present swapchain
 	VkPresentInfoKHR presentInfo = { VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
 	presentInfo.pSwapchains = &_swapchain;
 	presentInfo.swapchainCount = 1;
-	presentInfo.pWaitSemaphores = &_renderSemaphore;
+	presentInfo.pWaitSemaphores = &currentFrame._renderSemaphore;
 	presentInfo.waitSemaphoreCount = 1;
 	presentInfo.pImageIndices = &swapchainImageIndex;
 	VK_CHECK(vkQueuePresentKHR(_graphicsQueue, &presentInfo));
@@ -468,21 +513,23 @@ bool VulkanEngine::load_shader_module(const char* filePath, VkShaderModule* outS
 
 void VulkanEngine::load_meshes()
 {
-	_triangleMesh._vertices.resize(3);
-	_triangleMesh._vertices[0].position = { 1.f, 1.f, 0.0f };
-	_triangleMesh._vertices[1].position = {-1.f, 1.f, 0.0f };
-	_triangleMesh._vertices[2].position = { 0.f,-1.f, 0.0f };
-	_triangleMesh._vertices[0].color = { 0.f, 1.f, 0.0f }; //pure green
-	_triangleMesh._vertices[1].color = { 0.f, 1.f, 0.0f }; //pure green
-	_triangleMesh._vertices[2].color = { 0.f, 1.f, 0.0f }; //pure green
+	Mesh triangleMesh;
+	triangleMesh._vertices.resize(3);
+	triangleMesh._vertices[0].position = { 1.f, 1.f, 0.0f };
+	triangleMesh._vertices[1].position = {-1.f, 1.f, 0.0f };
+	triangleMesh._vertices[2].position = { 0.f,-1.f, 0.0f };
+	triangleMesh._vertices[0].color = { 0.f, 1.f, 0.0f }; //pure green
+	triangleMesh._vertices[1].color = { 0.f, 1.f, 0.0f }; //pure green
+	triangleMesh._vertices[2].color = { 0.f, 1.f, 0.0f }; //pure green
 
-	_monkeyMesh.load_from_obj("../Assets/monkey_smooth.obj");
+	Mesh monkeyMesh;
+	monkeyMesh.load_from_obj("../Assets/monkey_smooth.obj");
 
-	upload_mesh(_monkeyMesh);
-	upload_mesh(_triangleMesh);
+	upload_mesh(triangleMesh);
+	upload_mesh(monkeyMesh);
 
-	_meshes["monkey"] = _monkeyMesh;
-	_meshes["triangle"] = _triangleMesh;
+	_meshes["triangle"] = triangleMesh;
+	_meshes["monkey"] = monkeyMesh;
 }
 
 void VulkanEngine::upload_mesh(Mesh& mesh)
@@ -579,6 +626,29 @@ void VulkanEngine::draw_objects(VkCommandBuffer cmd,RenderObject* first, int cou
 
 		vkCmdDraw(cmd, object.mesh->_vertices.size(), 1, 0, 0);
 	}
+}
+
+FrameData& VulkanEngine::get_current_frame()
+{
+	return _frames[_frameNumber % FRAME_OVERLAP];
+}
+
+AllocatedBuffer VulkanEngine::create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage)
+{
+	VkBufferCreateInfo bufferInfo = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
+	bufferInfo.size = allocSize;
+	bufferInfo.usage = usage;
+
+	VmaAllocationCreateInfo vmaallocInfo = {};
+	vmaallocInfo.usage = memoryUsage;
+
+	AllocatedBuffer newBuffer;
+	VK_CHECK(vmaCreateBuffer(_allocator, &bufferInfo, &vmaallocInfo,
+		&newBuffer._buffer,
+		&newBuffer._allocation,
+		nullptr));
+
+	return newBuffer;
 }
 
 VkPipeline PipelineBuilder::build_pipeline(VkDevice device, VkRenderPass pass)
