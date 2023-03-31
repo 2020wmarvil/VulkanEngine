@@ -48,6 +48,15 @@ struct GPUCameraData
 	glm::mat4 viewproj;
 };
 
+struct GPUSceneData
+{
+	glm::vec4 fogColor; // w is for exponent
+	glm::vec4 fogDistances; //x for min, y for max, zw unused.
+	glm::vec4 ambientColor;
+	glm::vec4 sunlightDirection; //w for sun power
+	glm::vec4 sunlightColor;
+};
+
 struct FrameData
 {
 	VkSemaphore _presentSemaphore, _renderSemaphore;
@@ -105,6 +114,7 @@ public:
 	VkInstance _instance;
 	VkDebugUtilsMessengerEXT _debug_messenger;
 	VkPhysicalDevice _chosenGPU;
+	VkPhysicalDeviceProperties _gpuProperties;
 	VkDevice _device;
 	VkSurfaceKHR _surface;
 	VkQueue _graphicsQueue;
@@ -122,17 +132,20 @@ public:
 	VkRenderPass _renderPass;
 	std::vector<VkFramebuffer> _framebuffers;
 
-	FrameData _frames[FRAME_OVERLAP];
+	VkDescriptorSetLayout _globalSetLayout;
+	VkDescriptorPool _descriptorPool;
 
 	VmaAllocator _allocator;
 	DeletionQueue _mainDeletionQueue;
 
+	FrameData _frames[FRAME_OVERLAP];
+
+	GPUSceneData _sceneParameters;
+	AllocatedBuffer _sceneParameterBuffer;
+
 	std::vector<RenderObject> _renderables;
 	std::unordered_map<std::string, Material> _materials;
 	std::unordered_map<std::string, Mesh> _meshes;
-
-	VkDescriptorSetLayout _globalSetLayout;
-	VkDescriptorPool _descriptorPool;
 	
 	void init();
 	void init_vulkan();
@@ -160,4 +173,5 @@ public:
 
 	FrameData& get_current_frame();
 	AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
+	size_t pad_uniform_buffer_size(size_t originalSize);
 };
