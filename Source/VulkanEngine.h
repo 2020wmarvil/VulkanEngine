@@ -57,6 +57,11 @@ struct GPUSceneData
 	glm::vec4 sunlightColor;
 };
 
+struct GPUObjectData
+{
+	glm::mat4 modelMatrix;
+};
+
 struct FrameData
 {
 	VkSemaphore _presentSemaphore, _renderSemaphore;
@@ -65,7 +70,10 @@ struct FrameData
 	VkCommandBuffer _mainCommandBuffer;
 
 	AllocatedBuffer cameraBuffer; // buffer that holds a single GPUCameraData to use when rendering
-	VkDescriptorSet globalDescriptor;
+	VkDescriptorSet globalDescriptor; // descriptor 0
+
+	AllocatedBuffer objectBuffer; // buffer that holds a object data from the scene
+	VkDescriptorSet objectDescriptor; // descriptor 1
 };
 
 struct DeletionQueue
@@ -132,8 +140,9 @@ public:
 	VkRenderPass _renderPass;
 	std::vector<VkFramebuffer> _framebuffers;
 
-	VkDescriptorSetLayout _globalSetLayout;
 	VkDescriptorPool _descriptorPool;
+	VkDescriptorSetLayout _globalSetLayout; // descriptor 0
+	VkDescriptorSetLayout _objectSetLayout; // descriptor 1
 
 	VmaAllocator _allocator;
 	DeletionQueue _mainDeletionQueue;
