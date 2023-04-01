@@ -344,12 +344,12 @@ void VulkanEngine::init_descriptors()
 
 		VkDescriptorBufferInfo sceneInfo;
 		sceneInfo.buffer = _sceneParameterBuffer._buffer;
-		sceneInfo.offset = pad_uniform_buffer_size(sizeof(GPUSceneData)) * i;
+		sceneInfo.offset = 0;
 		sceneInfo.range = sizeof(GPUSceneData);
 
-		VkWriteDescriptorSet cameraWrite = vkinit::write_descriptor_buffer(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, _frames[i].globalDescriptor,&cameraInfo, 0);
-		VkWriteDescriptorSet sceneWrite = vkinit::write_descriptor_buffer(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, _frames[i].globalDescriptor, &sceneInfo, 1);
-		VkWriteDescriptorSet setWrites[] = { cameraWrite,sceneWrite };
+		VkWriteDescriptorSet cameraWrite = vkinit::write_descriptor_buffer(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, _frames[i].globalDescriptor, &cameraInfo, 0);
+		VkWriteDescriptorSet sceneWrite = vkinit::write_descriptor_buffer(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, _frames[i].globalDescriptor, &sceneInfo, 1);
+		VkWriteDescriptorSet setWrites[] = { cameraWrite, sceneWrite };
 		vkUpdateDescriptorSets(_device, 2, setWrites, 0, nullptr);
 	}
 }
@@ -648,13 +648,13 @@ void VulkanEngine::draw_objects(VkCommandBuffer cmd,RenderObject* first, int cou
 	vmaUnmapMemory(_allocator, get_current_frame().cameraBuffer._allocation);
 
 	float framed = (_frameNumber / 120.f);
-	_sceneParameters.ambientColor = { sin(framed),0,cos(framed),1 };
+	_sceneParameters.ambientColor = { sin(framed), 0, cos(framed), 1 };
 	char* sceneData;
-	vmaMapMemory(_allocator, _sceneParameterBuffer._allocation , (void**)&sceneData);
+	//vmaMapMemory(_allocator, _sceneParameterBuffer._allocation , (void**)&sceneData);
 	int frameIndex = _frameNumber % FRAME_OVERLAP;
-	sceneData += pad_uniform_buffer_size(sizeof(GPUSceneData)) * frameIndex;
-	memcpy(sceneData, &_sceneParameters, sizeof(GPUSceneData));
-	vmaUnmapMemory(_allocator, _sceneParameterBuffer._allocation);
+	//sceneData += pad_uniform_buffer_size(sizeof(GPUSceneData)) * frameIndex;
+	//memcpy(sceneData, &_sceneParameters, sizeof(GPUSceneData));
+	//vmaUnmapMemory(_allocator, _sceneParameterBuffer._allocation);
 
 	Mesh* lastMesh = nullptr;
 	Material* lastMaterial = nullptr;
@@ -667,8 +667,10 @@ void VulkanEngine::draw_objects(VkCommandBuffer cmd,RenderObject* first, int cou
 		{
 			vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipeline);
 			lastMaterial = object.material;
+
 			// bind the descriptor set when changing pipeline
-			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipelineLayout, 0, 1, &get_current_frame().globalDescriptor, 0, nullptr);
+			uint32_t uniform_offset = pad_uniform_buffer_size(sizeof(GPUSceneData)) * frameIndex; // offset for our scene buffer
+			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipelineLayout, 0, 1, &get_current_frame().globalDescriptor, 1, &uniform_offset);
 		}
 
 		MeshPushConstants constants;
