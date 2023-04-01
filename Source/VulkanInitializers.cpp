@@ -198,4 +198,26 @@ namespace vkinit
 		info.pSignalSemaphores = nullptr;
 		return info;
 	}
+
+	VkSamplerCreateInfo sampler_create_info(VkFilter filters, VkSamplerAddressMode samplerAddressMode /*= VK_SAMPLER_ADDRESS_MODE_REPEAT*/)
+	{
+		VkSamplerCreateInfo info = { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
+		info.magFilter = filters;
+		info.minFilter = filters;
+		info.addressModeU = samplerAddressMode;
+		info.addressModeV = samplerAddressMode;
+		info.addressModeW = samplerAddressMode;
+		return info;
+	}
+
+	VkWriteDescriptorSet write_descriptor_image(VkDescriptorType type, VkDescriptorSet dstSet, VkDescriptorImageInfo* imageInfo, uint32_t binding)
+	{
+		VkWriteDescriptorSet write = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+		write.dstBinding = binding;
+		write.dstSet = dstSet;
+		write.descriptorCount = 1;
+		write.descriptorType = type;
+		write.pImageInfo = imageInfo;
+		return write;
+	}
 }

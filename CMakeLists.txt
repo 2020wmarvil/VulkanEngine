@@ -49,6 +49,7 @@ target_include_directories(${ENGINE_NAME} PRIVATE
 	"${ENGINE_THIRDPARTY_DIR}/VulkanMemoryAllocator/include"
 	"${ENGINE_THIRDPARTY_DIR}/glfw/include"
 	"${ENGINE_THIRDPARTY_DIR}/glm/glm"
+	"${ENGINE_THIRDPARTY_DIR}/stb_image"
 	"${ENGINE_THIRDPARTY_DIR}/tinyobjloader"
 	"${ENGINE_THIRDPARTY_DIR}/vk-bootstrap"
 	"${Vulkan_INCLUDE_DIRS}"

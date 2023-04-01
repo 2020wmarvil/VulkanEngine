@@ -28,8 +28,15 @@ enum VmaMemoryUsage : int;
 //number of frames to overlap when rendering
 constexpr unsigned int FRAME_OVERLAP = 2;
 
+struct Texture
+{
+	AllocatedImage image;
+	VkImageView imageView;
+};
+
 struct Material
 {
+	VkDescriptorSet textureSet{VK_NULL_HANDLE};
 	VkPipeline pipeline;
 	VkPipelineLayout pipelineLayout;
 };
@@ -149,6 +156,7 @@ public:
 	VkDescriptorPool _descriptorPool;
 	VkDescriptorSetLayout _globalSetLayout; // descriptor 0
 	VkDescriptorSetLayout _objectSetLayout; // descriptor 1
+	VkDescriptorSetLayout _singleTextureSetLayout; // descriptor 2
 
 	VmaAllocator _allocator;
 	DeletionQueue _mainDeletionQueue;
@@ -161,6 +169,7 @@ public:
 	std::vector<RenderObject> _renderables;
 	std::unordered_map<std::string, Material> _materials;
 	std::unordered_map<std::string, Mesh> _meshes;
+	std::unordered_map<std::string, Texture> _loadedTextures;
 
 	UploadContext _uploadContext;
 	
@@ -181,6 +190,7 @@ public:
 
 	bool load_shader_module(const char* filePath, VkShaderModule* outShaderModule);
 	void load_meshes();
+	void load_images();
 	void upload_mesh(Mesh& mesh);
 
 	Material* create_material(VkPipeline pipeline, VkPipelineLayout layout, const std::string& name);
