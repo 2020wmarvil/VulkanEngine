@@ -93,6 +93,12 @@ struct DeletionQueue
 	}
 };
 
+struct UploadContext {
+	VkFence _uploadFence;
+	VkCommandPool _commandPool;
+	VkCommandBuffer _commandBuffer;
+};
+
 class PipelineBuilder
 {
 public:
@@ -155,6 +161,8 @@ public:
 	std::vector<RenderObject> _renderables;
 	std::unordered_map<std::string, Material> _materials;
 	std::unordered_map<std::string, Mesh> _meshes;
+
+	UploadContext _uploadContext;
 	
 	void init();
 	void init_vulkan();
@@ -183,4 +191,5 @@ public:
 	FrameData& get_current_frame();
 	AllocatedBuffer create_buffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
 	size_t pad_uniform_buffer_size(size_t originalSize);
+	void immediate_submit(std::function<void(VkCommandBuffer cmd)>&& function);
 };

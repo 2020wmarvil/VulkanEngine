@@ -27,16 +27,16 @@ namespace vkinit
 
 	VkFenceCreateInfo fence_create_info(VkFenceCreateFlags flags)
 	{
-	    VkFenceCreateInfo fenceCreateInfo = { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
-	    fenceCreateInfo.flags = flags;
-	    return fenceCreateInfo;
+		VkFenceCreateInfo fenceCreateInfo = { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
+		fenceCreateInfo.flags = flags;
+		return fenceCreateInfo;
 	}
-	
+
 	VkSemaphoreCreateInfo semaphore_create_info(VkSemaphoreCreateFlags flags)
 	{
-	    VkSemaphoreCreateInfo semCreateInfo = { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
-	    semCreateInfo.flags = flags;
-	    return semCreateInfo;
+		VkSemaphoreCreateInfo semCreateInfo = { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
+		semCreateInfo.flags = flags;
+		return semCreateInfo;
 	}
 
 	VkPipelineShaderStageCreateInfo pipeline_shader_stage_create_info(VkShaderStageFlagBits stage, VkShaderModule shaderModule)
@@ -108,10 +108,10 @@ namespace vkinit
 	VkPipelineColorBlendAttachmentState color_blend_attachment_state()
 	{
 		VkPipelineColorBlendAttachmentState colorBlendAttachment = {};
-		colorBlendAttachment.colorWriteMask = 
-			  VK_COLOR_COMPONENT_R_BIT 
-			| VK_COLOR_COMPONENT_G_BIT 
-			| VK_COLOR_COMPONENT_B_BIT 
+		colorBlendAttachment.colorWriteMask =
+			VK_COLOR_COMPONENT_R_BIT
+			| VK_COLOR_COMPONENT_G_BIT
+			| VK_COLOR_COMPONENT_B_BIT
 			| VK_COLOR_COMPONENT_A_BIT;
 		colorBlendAttachment.blendEnable = VK_FALSE;
 		return colorBlendAttachment;
@@ -142,7 +142,7 @@ namespace vkinit
 		return info;
 	}
 
-	VkImageViewCreateInfo vkinit::imageview_create_info(VkFormat format, VkImage image, VkImageAspectFlags aspectFlags)
+	VkImageViewCreateInfo imageview_create_info(VkFormat format, VkImage image, VkImageAspectFlags aspectFlags)
 	{
 		VkImageViewCreateInfo info = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
 		info.viewType = VK_IMAGE_VIEW_TYPE_2D;
@@ -166,8 +166,8 @@ namespace vkinit
 		setbind.stageFlags = stageFlags;
 		return setbind;
 	}
-	
-	VkWriteDescriptorSet write_descriptor_buffer(VkDescriptorType type, VkDescriptorSet dstSet, VkDescriptorBufferInfo* bufferInfo , uint32_t binding)
+
+	VkWriteDescriptorSet write_descriptor_buffer(VkDescriptorType type, VkDescriptorSet dstSet, VkDescriptorBufferInfo* bufferInfo, uint32_t binding)
 	{
 		VkWriteDescriptorSet write = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
 		write.dstBinding = binding;
@@ -176,5 +176,26 @@ namespace vkinit
 		write.descriptorType = type;
 		write.pBufferInfo = bufferInfo;
 		return write;
+	}
+
+	VkCommandBufferBeginInfo command_buffer_begin_info(VkCommandBufferUsageFlags flags /*= 0*/)
+	{
+		VkCommandBufferBeginInfo info = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+		info.pInheritanceInfo = nullptr;
+		info.flags = flags;
+		return info;
+	}
+
+	VkSubmitInfo submit_info(VkCommandBuffer* cmd)
+	{
+		VkSubmitInfo info = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+		info.waitSemaphoreCount = 0;
+		info.pWaitSemaphores = nullptr;
+		info.pWaitDstStageMask = nullptr;
+		info.commandBufferCount = 1;
+		info.pCommandBuffers = cmd;
+		info.signalSemaphoreCount = 0;
+		info.pSignalSemaphores = nullptr;
+		return info;
 	}
 }
