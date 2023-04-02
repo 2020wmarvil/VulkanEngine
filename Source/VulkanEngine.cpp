@@ -546,6 +546,9 @@ void VulkanEngine::init_scene()
 
 		VkSampler blockySampler;
 		vkCreateSampler(_device, &samplerInfo, nullptr, &blockySampler);
+		_mainDeletionQueue.push_function([=]() {
+			vkDestroySampler(_device, blockySampler, nullptr);
+		});
 
 		Material* texturedMat = get_material("texturedmesh");
 
@@ -713,6 +716,9 @@ void VulkanEngine::load_images()
 
 	VkImageViewCreateInfo imageinfo = vkinit::imageview_create_info(VK_FORMAT_R8G8B8A8_SRGB, lostEmpire.image._image, VK_IMAGE_ASPECT_COLOR_BIT);
 	vkCreateImageView(_device, &imageinfo, nullptr, &lostEmpire.imageView);
+	_mainDeletionQueue.push_function([=]() {
+		vkDestroyImageView(_device, lostEmpire.imageView, nullptr);
+    });
 
 	_loadedTextures["empire_diffuse"] = lostEmpire;
 }
