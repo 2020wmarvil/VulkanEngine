@@ -52,14 +52,17 @@ target_include_directories(${ENGINE_NAME} PRIVATE
 	"${ENGINE_THIRDPARTY_DIR}/stb_image"
 	"${ENGINE_THIRDPARTY_DIR}/tinyobjloader"
 	"${ENGINE_THIRDPARTY_DIR}/vk-bootstrap"
+  "${ENGINE_THIRDPARTY_DIR}/imgui"
 	"${Vulkan_INCLUDE_DIRS}"
 )
 
 # build and link thirdparty resources
+add_subdirectory("${ENGINE_THIRDPARTY_DIR}/VulkanMemoryAllocator")
 add_subdirectory("${ENGINE_THIRDPARTY_DIR}/glfw")
 add_subdirectory("${ENGINE_THIRDPARTY_DIR}/glm")
-add_subdirectory("${ENGINE_THIRDPARTY_DIR}/VulkanMemoryAllocator")
+add_subdirectory("${ENGINE_THIRDPARTY_DIR}/imgui")
 add_subdirectory("${ENGINE_THIRDPARTY_DIR}/vk-bootstrap")
+
 target_link_libraries(${ENGINE_NAME} ${Vulkan_LIBRARY} glfw glm VulkanMemoryAllocator vkbootstrap)
 
 # create a shader target

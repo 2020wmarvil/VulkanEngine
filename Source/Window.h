@@ -3,7 +3,7 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
-class Window 
+class Window
 {
 public:
     Window(int width, int height, const char* name);
@@ -19,6 +19,8 @@ public:
     void CreateSurface(VkInstance instance, const VkAllocationCallbacks* allocationCallbacks, VkSurfaceKHR* surface) const;
     void GetWindowSize(int& outWidth, int& outHeight);
     void GetFramebufferSize(int& outWidth, int& outHeight);
+
+    GLFWwindow* GetHandle() { return window; }
 
     static void Init();
     static void Terminate();
