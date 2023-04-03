@@ -18,6 +18,7 @@
  * - Add WASD controls to the camera. For that, you would need to modify the camera matrices in the draw functions.
  * - Sort the renderables array before rendering by Pipeline and Mesh, to reduce number of binds.
  * - Instanced rendering + per instance custom data
+ * - Cache Vulkan objects (Pipelines, render passes, samplers)
  */
 
 struct VmaAllocator_T;
